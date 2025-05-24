@@ -428,6 +428,92 @@ def print_qr_ticket(printer):
         print(f"Error durante la impresión del ticket QR: {str(e)}")
         return False
 
+# === FUNCIONES PARA ATAJOS DE TECLADO ===
+
+def handle_space_key(current_image, button_visible, hide_time, servo_timer, servo_state, printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2):
+    """Maneja la tecla SPACE (equivalente al botón GPIO)"""
+    current_time = time.time()
+    
+    if not button_visible:  # Solo actuar si no hay imagen visible
+        # 1. Seleccionar y mostrar la imagen
+        current_image = get_random_image()
+        button_visible = True
+        hide_time = None
+        print("SPACE presionado - Mostrando imagen")
+        
+        # 2. Imprimir el ticket
+        if printer:
+            print("Imprimiendo ticket...")
+            if DEBUG_MODE:
+                print_debug(printer)
+            else:
+                print_art_ticket(printer)
+        
+        # --- MODO SOLO_BOTON ---
+        if SOLO_BOTON:
+            # Mover el primer servo normalmente
+            move_servo_smoothly(servo, turn_position)
+            # Realizar la secuencia compleja con el segundo servo
+            move_servo_smoothly(servo2, neutral_position2)
+            move_servo_smoothly(servo2, turn_position2)
+            time.sleep(1)  # Breve pausa para mantener el giro
+            move_servo_smoothly(servo, neutral_position)
+            move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
+            detach_servo(servo)
+            detach_servo(servo2)
+            # Ocultar la imagen después de 2 segundos
+            hide_time = current_time + 2
+            servo_timer = None
+            servo_state = "neutral"
+        else:
+            # 3. Iniciar temporizador para el servo
+            servo_timer = current_time
+            servo_state = "waiting"
+            print("Iniciando temporizador para servo...")
+    
+    return current_image, button_visible, hide_time, servo_timer, servo_state
+
+def handle_p_key(printer):
+    """Maneja la tecla P (Solo impresora)"""
+    if printer:
+        print("P presionado - Solo impresora")
+        if DEBUG_MODE:
+            print_debug(printer)
+        else:
+            print_art_ticket(printer)
+    else:
+        print("P presionado - Impresora no disponible")
+
+def handle_q_key(printer):
+    """Maneja la tecla Q (Solo ticket QR)"""
+    if printer:
+        print("Q presionado - Solo ticket QR")
+        print_qr_ticket(printer)
+    else:
+        print("Q presionado - Impresora no disponible")
+
+def handle_l_key(printer):
+    """Maneja la tecla L (Ticket largo)"""
+    if printer:
+        print("L presionado - Ticket largo")
+        print_art_ticket(printer)
+    else:
+        print("L presionado - Impresora no disponible")
+
+def handle_s_key(servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2):
+    """Maneja la tecla S (Solo servos)"""
+    print("S presionado - Solo servos")
+    # Mover el primer servo normalmente
+    move_servo_smoothly(servo, turn_position)
+    # Realizar la secuencia compleja con el segundo servo
+    move_servo_smoothly(servo2, neutral_position2)
+    move_servo_smoothly(servo2, turn_position2)
+    time.sleep(1)  # Breve pausa para mantener el giro
+    move_servo_smoothly(servo, neutral_position)
+    move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
+    detach_servo(servo)
+    detach_servo(servo2)
+
 def main():
     try:
         # Configurar servo y botón
@@ -467,6 +553,16 @@ def main():
         servo_timer = None
         servo_state = "neutral"  # neutral, waiting, turning, returning
         
+        # Mostrar atajos de teclado disponibles
+        print("\n=== ATAJOS DE TECLADO DISPONIBLES ===")
+        print("SPACE - Equivalente al botón GPIO (imagen + ticket + servos)")
+        print("P     - Solo impresora (ticket completo)")
+        print("Q     - Solo ticket QR")
+        print("L     - Ticket largo (igual que P)")
+        print("S     - Solo servos")
+        print("ESC   - Salir del programa")
+        print("=====================================\n")
+        
         while True:
             # Manejar eventos de Pygame
             for event in pygame.event.get():
@@ -477,6 +573,24 @@ def main():
                     if event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         sys.exit()
+                    elif event.key == pygame.K_SPACE:
+                        # SPACE - Equivalente al botón GPIO
+                        current_image, button_visible, hide_time, servo_timer, servo_state = handle_space_key(
+                            current_image, button_visible, hide_time, servo_timer, servo_state,
+                            printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
+                        )
+                    elif event.key == pygame.K_p:
+                        # P - Solo impresora
+                        handle_p_key(printer)
+                    elif event.key == pygame.K_q:
+                        # Q - Solo ticket QR
+                        handle_q_key(printer)
+                    elif event.key == pygame.K_l:
+                        # L - Ticket largo
+                        handle_l_key(printer)
+                    elif event.key == pygame.K_s:
+                        # S - Solo servos
+                        handle_s_key(servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2)
             
             current_time = time.time()
             
