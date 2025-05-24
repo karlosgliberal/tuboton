@@ -154,7 +154,7 @@ def get_random_image():
         print(f"Error al seleccionar imagen aleatoria: {e}")
         return None
 
-def print_art_ticket(printer, estilo_base=None):
+def print_art_ticket(printer, estilo_base=None, imagen_path=None):
     """Imprime el ticket completo con el diseño artístico."""
     try:
         print("\n--- Iniciando impresión del ticket artístico ---")
@@ -185,7 +185,8 @@ def print_art_ticket(printer, estilo_base=None):
         printer.text("Instancia Generativa Única\n\n")
 
         # 3. Imprimir la imagen
-        imagen_generada = get_random_image()
+        # Usar la imagen pasada como parámetro o seleccionar una nueva
+        imagen_generada = imagen_path if imagen_path else get_random_image()
         if imagen_generada:
             if not print_image(printer, imagen_generada):
                 printer.set(align='center')
@@ -265,8 +266,8 @@ def draw_image(screen, image_path):
         # Cargar la imagen
         img = Image.open(image_path)
         
-        # Convertir a escala de grises
-        img = img.convert('L')
+        # NO convertir a escala de grises - mantener color para pantalla
+        # img = img.convert('L')  # Esta línea se elimina
         
         # Ajustar tamaño para que quepa en la pantalla
         max_size = min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.8  # 80% del tamaño de la pantalla
@@ -276,7 +277,7 @@ def draw_image(screen, image_path):
         new_height = int(height * ratio)
         img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
-        # Convertir a formato Pygame
+        # Convertir a formato Pygame manteniendo el color
         img = img.convert('RGB')
         img_surface = pygame.image.fromstring(img.tobytes(), img.size, 'RGB')
         
@@ -524,12 +525,12 @@ def handle_probabilistic_button(current_image, button_visible, hide_time, servo_
             
         elif action == "ticket_servos":
             print("🎫🔧 Imprimiendo ticket largo + activando servos")
-            # Imprimir ticket largo
+            # Imprimir ticket largo con la imagen seleccionada
             if printer:
                 if DEBUG_MODE:
                     print_debug(printer)
                 else:
-                    print_art_ticket(printer)
+                    print_art_ticket(printer, imagen_path=current_image)
             
             # Activar servos según el modo
             if SOLO_BOTON:
