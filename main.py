@@ -432,46 +432,11 @@ def print_qr_ticket(printer):
 
 def handle_space_key(current_image, button_visible, hide_time, servo_timer, servo_state, printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2):
     """Maneja la tecla SPACE (equivalente al botón GPIO)"""
-    current_time = time.time()
-    
-    if not button_visible:  # Solo actuar si no hay imagen visible
-        # 1. Seleccionar y mostrar la imagen
-        current_image = get_random_image()
-        button_visible = True
-        hide_time = None
-        print("SPACE presionado - Mostrando imagen")
-        
-        # 2. Imprimir el ticket
-        if printer:
-            print("Imprimiendo ticket...")
-            if DEBUG_MODE:
-                print_debug(printer)
-            else:
-                print_art_ticket(printer)
-        
-        # --- MODO SOLO_BOTON ---
-        if SOLO_BOTON:
-            # Mover el primer servo normalmente
-            move_servo_smoothly(servo, turn_position)
-            # Realizar la secuencia compleja con el segundo servo
-            move_servo_smoothly(servo2, neutral_position2)
-            move_servo_smoothly(servo2, turn_position2)
-            time.sleep(1)  # Breve pausa para mantener el giro
-            move_servo_smoothly(servo, neutral_position)
-            move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
-            detach_servo(servo)
-            detach_servo(servo2)
-            # Ocultar la imagen después de 2 segundos
-            hide_time = current_time + 2
-            servo_timer = None
-            servo_state = "neutral"
-        else:
-            # 3. Iniciar temporizador para el servo
-            servo_timer = current_time
-            servo_state = "waiting"
-            print("Iniciando temporizador para servo...")
-    
-    return current_image, button_visible, hide_time, servo_timer, servo_state
+    # Usar la misma lógica probabilística que el botón físico
+    return handle_probabilistic_button(
+        current_image, button_visible, hide_time, servo_timer, servo_state,
+        printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
+    )
 
 def handle_p_key(printer):
     """Maneja la tecla P (Solo impresora)"""
@@ -513,6 +478,80 @@ def handle_s_key(servo, servo2, neutral_position, turn_position, neutral_positio
     move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
     detach_servo(servo)
     detach_servo(servo2)
+
+# === SISTEMA DE PROBABILIDAD ===
+
+def select_random_action():
+    """Selecciona una acción aleatoria basada en las probabilidades configuradas"""
+    rand_num = random.randint(1, 100)
+    
+    if rand_num <= PROB_SOLO_IMAGEN:
+        return "solo_imagen"
+    elif rand_num <= PROB_SOLO_IMAGEN + PROB_TICKET_QR:
+        return "ticket_qr"
+    else:
+        return "ticket_servos"
+
+def handle_probabilistic_button(current_image, button_visible, hide_time, servo_timer, servo_state, printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2):
+    """Maneja el botón con sistema de probabilidad"""
+    current_time = time.time()
+    
+    if not button_visible:  # Solo actuar si no hay imagen visible
+        # 1. SIEMPRE: Seleccionar y mostrar la imagen
+        current_image = get_random_image()
+        button_visible = True
+        hide_time = None
+        
+        # 2. Seleccionar acción aleatoria
+        action = select_random_action()
+        print(f"Botón presionado - Acción seleccionada: {action}")
+        
+        if action == "solo_imagen":
+            print("🖼️ Solo imagen en pantalla")
+            # Solo mostrar imagen, ocultar después de 5 segundos
+            hide_time = current_time + 5
+            servo_timer = None
+            servo_state = "neutral"
+            
+        elif action == "ticket_qr":
+            print("🎫 Imprimiendo ticket QR")
+            if printer:
+                print_qr_ticket(printer)
+            # Ocultar imagen después de 3 segundos
+            hide_time = current_time + 3
+            servo_timer = None
+            servo_state = "neutral"
+            
+        elif action == "ticket_servos":
+            print("🎫🔧 Imprimiendo ticket largo + activando servos")
+            # Imprimir ticket largo
+            if printer:
+                if DEBUG_MODE:
+                    print_debug(printer)
+                else:
+                    print_art_ticket(printer)
+            
+            # Activar servos según el modo
+            if SOLO_BOTON:
+                # Ejecutar servos inmediatamente
+                move_servo_smoothly(servo, turn_position)
+                move_servo_smoothly(servo2, neutral_position2)
+                move_servo_smoothly(servo2, turn_position2)
+                time.sleep(1)
+                move_servo_smoothly(servo, neutral_position)
+                move_servo_smoothly(servo2, neutral_position2)
+                detach_servo(servo)
+                detach_servo(servo2)
+                hide_time = current_time + 2
+                servo_timer = None
+                servo_state = "neutral"
+            else:
+                # Iniciar temporizador para servos
+                servo_timer = current_time
+                servo_state = "waiting"
+                print("Iniciando temporizador para servo...")
+    
+    return current_image, button_visible, hide_time, servo_timer, servo_state
 
 def main():
     try:
@@ -563,6 +602,13 @@ def main():
         print("ESC   - Salir del programa")
         print("=====================================\n")
         
+        # Mostrar configuración de probabilidades
+        print("=== SISTEMA DE PROBABILIDAD ACTIVO ===")
+        print(f"Solo imagen:      {PROB_SOLO_IMAGEN}%")
+        print(f"Ticket QR:        {PROB_TICKET_QR}%") 
+        print(f"Ticket + servos:  {PROB_TICKET_SERVOS}%")
+        print("=====================================\n")
+        
         while True:
             # Manejar eventos de Pygame
             for event in pygame.event.get():
@@ -596,42 +642,11 @@ def main():
             
             # Verificar si el botón físico está presionado
             if button.is_pressed:
-                if not button_visible:  # Solo seleccionar nueva imagen si no estaba visible
-                    # 1. Seleccionar y mostrar la imagen
-                    current_image = get_random_image()
-                    button_visible = True
-                    hide_time = None
-                    print("Pulsador presionado - Mostrando imagen")
-                    
-                    # 2. Imprimir el ticket
-                    if printer:
-                        print("Imprimiendo ticket...")
-                        if DEBUG_MODE:
-                            print_debug(printer)
-                        else:
-                            print_art_ticket(printer)
-                    
-                    # --- MODO SOLO_BOTON ---
-                    if SOLO_BOTON:
-                        # Mover el primer servo normalmente
-                        move_servo_smoothly(servo, turn_position)
-                        # Realizar la secuencia compleja con el segundo servo
-                        move_servo_smoothly(servo2, neutral_position2)
-                        move_servo_smoothly(servo2, turn_position2)
-                        time.sleep(1)  # Breve pausa para mantener el giro
-                        move_servo_smoothly(servo, neutral_position)
-                        move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
-                        detach_servo(servo)
-                        detach_servo(servo2)
-                        # Ocultar la imagen después de 2 segundos
-                        hide_time = current_time + 2
-                        servo_timer = None
-                        servo_state = "neutral"
-                    else:
-                        # 3. Iniciar temporizador para el servo
-                        servo_timer = current_time
-                        servo_state = "waiting"
-                        print("Iniciando temporizador para servo...")
+                # Usar sistema de probabilidad para el botón físico
+                current_image, button_visible, hide_time, servo_timer, servo_state = handle_probabilistic_button(
+                    current_image, button_visible, hide_time, servo_timer, servo_state,
+                    printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
+                )
             
             # Manejar estados del servo SOLO si NO es SOLO_BOTON
             if not SOLO_BOTON and servo_timer is not None:
