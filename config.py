@@ -108,4 +108,9 @@ BUTTON_STYLES = {
         "style_text": "glassmorphic, soft gradient, Web3 style",
         "prompt": "Use translucent cards, pastel gradients, and glowing elements. Inspired by futuristic Web3 UI styles seen in crypto dashboards."
     }
-} 
+}
+
+# --- Configuración del QR ---
+QR_URL = "https://www.karlosgliberal.com/proyectos/este-es-tu-boton/"  # Cambiar por la URL real
+QR_SIZE = 4  # Tamaño del QR (1-10, donde 3 es tamaño mediano)
+QR_BORDER = 2  # Borde alrededor del QR en píxeles 
