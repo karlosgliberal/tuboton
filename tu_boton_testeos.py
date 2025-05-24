@@ -20,10 +20,10 @@ VENDOR_ID = 0x0416
 PRODUCT_ID = 0x5011
 
 # --- Configuración de Debug ---
-DEBUG_MODE = False    # Cambia a False para modo normal
+DEBUG_MODE = True    # Cambia a False para modo normal
 
 # --- Configuración Solo Botón ---
-SOLO_BOTON = False # Si es True, la impresora no se inicializa ni se usa
+SOLO_BOTON = True # Si es True, la impresora no se inicializa ni se usa
 
 # --- Configuración del Servo ---
 SERVO_PIN = 18
@@ -436,23 +436,15 @@ def main():
         neutral_position = -90
         turn_position = 90
         turn_position2 = 90
-        neutral_position2 = 30  # Cambiado de 0 a 30 grados
+        neutral_position2 = 30
         
         # Iniciar en posición neutral
-        #move_servo_smoothly(servo, neutral_position)
         move_servo_smoothly(servo2, neutral_position2)
-        #detach_servo(servo)
         detach_servo(servo2)
         
         # Configurar Pygame
         clock = pygame.time.Clock()
-        button_visible = False
-        current_image = None
-        hide_time = None
-        
-        # Variables para el temporizador
-        servo_timer = None
-        servo_state = "neutral"  # neutral, waiting, turning, returning
+        current_image = "images/imagen_35.png"  # Imagen fija
         
         while True:
             # Manejar eventos de Pygame
@@ -465,81 +457,23 @@ def main():
                         pygame.quit()
                         sys.exit()
             
-            current_time = time.time()
-            
             # Verificar si el botón físico está presionado
             if button.is_pressed:
-                if not button_visible:  # Solo seleccionar nueva imagen si no estaba visible
-                    # 1. Seleccionar y mostrar la imagen
-                    current_image = get_random_image()
-                    button_visible = True
-                    hide_time = None
-                    print("Pulsador presionado - Mostrando imagen")
-                    
-                    # 2. Imprimir el ticket
-                    if printer:
-                        print("Imprimiendo ticket...")
-                        if DEBUG_MODE:
-                            print_debug(printer)
-                        else:
-                            print_art_ticket(printer)
-                    
-                    # --- MODO SOLO_BOTON ---
-                    if SOLO_BOTON:
-                        # Mover el primer servo normalmente
-                        move_servo_smoothly(servo, turn_position)
-                        # Realizar la secuencia compleja con el segundo servo
-                        move_servo_smoothly(servo2, neutral_position2, turn_position2)
-                        sleep(1)  # Breve pausa para mantener el giro
-                        move_servo_smoothly(servo, neutral_position)
-                        move_servo_smoothly(servo2, neutral_position2)  # Volver a la posición inicial de 30 grados
-                        detach_servo(servo)
-                        detach_servo(servo2)
-                        # Ocultar la imagen después de 2 segundos
-                        hide_time = current_time + 2
-                        servo_timer = None
-                        servo_state = "neutral"
-                    else:
-                        # 3. Iniciar temporizador para el servo
-                        servo_timer = current_time
-                        servo_state = "waiting"
-                        print("Iniciando temporizador para servo...")
-            
-            # Manejar estados del servo SOLO si NO es SOLO_BOTON
-            if not SOLO_BOTON and servo_timer is not None:
-                print(servo_state)
-                if servo_state == "waiting" and current_time - servo_timer >= 4:
-                    # Mover ambos servos a posición de giro
-                    move_servo_smoothly(servo, turn_position)
-                    move_servo_smoothly(servo2, turn_position)
-                    servo_state = "turning"
-                    servo_timer = current_time
-                elif servo_state == "turning" and current_time - servo_timer >= 2:
-                    # Volver ambos servos a posición neutral
-                    move_servo_smoothly(servo, neutral_position)
-                    move_servo_smoothly(servo2, neutral_position)
-                    detach_servo(servo)
-                    detach_servo(servo2)
-                    servo_state = "returning"
-                    servo_timer = current_time
-                elif servo_state == "returning" and current_time - servo_timer >= 0.5:
-                    # Establecer el tiempo para ocultar la imagen (5 segundos después)
-                    hide_time = current_time + 5
-                    servo_timer = None
-                    servo_state = "neutral"
-            
-            # Verificar si es hora de ocultar la imagen
-            if hide_time and current_time >= hide_time:
-                button_visible = False
-                current_image = None
-                hide_time = None
+                # Mover el primer servo normalmente
+                move_servo_smoothly(servo, turn_position)
+                # Realizar la secuencia compleja con el segundo servo
+                move_servo_smoothly(servo2, neutral_position2, turn_position2)
+                sleep(1)  # Breve pausa para mantener el giro
+                move_servo_smoothly(servo, neutral_position)
+                move_servo_smoothly(servo2, neutral_position2)
+                detach_servo(servo)
+                detach_servo(servo2)
             
             # Limpiar la pantalla con fondo blanco
             screen.fill(WHITE)
             
-            # Dibujar la imagen solo si es visible
-            if button_visible and current_image:
-                draw_image(current_image)
+            # Dibujar la imagen siempre
+            draw_image(current_image)
             
             # Actualizar la pantalla
             pygame.display.flip()
