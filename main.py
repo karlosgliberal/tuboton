@@ -269,8 +269,15 @@ def draw_image(screen, image_path):
         # NO convertir a escala de grises - mantener color para pantalla
         # img = img.convert('L')  # Esta línea se elimina
         
-        # Ajustar tamaño para que quepa en la pantalla
-        max_size = min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.8  # 80% del tamaño de la pantalla
+        # Ajustar tamaño según el tipo de imagen
+        if "suscripcion" in image_path:
+            # Para la imagen de suscripción, usar 95% de la pantalla
+            max_size = min(SCREEN_WIDTH, SCREEN_HEIGHT) * 1.20
+            print(f"Mostrando imagen de suscripción con tamaño aumentado")
+        else:
+            # Para imágenes del botón, usar 80% de la pantalla (como antes)
+            max_size = min(SCREEN_WIDTH, SCREEN_HEIGHT) * 0.8
+        
         width, height = img.size
         ratio = max_size / max(width, height)
         new_width = int(width * ratio)

@@ -111,7 +111,7 @@ BUTTON_STYLES = {
 }
 
 # --- Configuración del QR ---
-QR_URL = "https://tuboton.example.com"  # Cambiar por la URL real
+QR_URL = "https://www.karlosgliberal.com/proyectos/este-es-tu-boton/"  # Cambiar por la URL real
 QR_SIZE = 3  # Tamaño del QR (1-10, donde 3 es tamaño mediano)
 QR_BORDER = 2  # Borde alrededor del QR en píxeles
 
