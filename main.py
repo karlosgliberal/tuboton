@@ -509,10 +509,10 @@ def handle_probabilistic_button(current_image, button_visible, hide_time, servo_
         
         if action == "solo_imagen":
             print("🖼️ Solo imagen en pantalla")
-            # Solo mostrar imagen, ocultar después de 5 segundos
-            hide_time = current_time + 5
-            servo_timer = None
-            servo_state = "neutral"
+            # Solo mostrar imagen del botón, después cambiar a suscripción
+            hide_time = current_time + 5  # Mostrar botón por 5 segundos
+            servo_timer = current_time  # Usar servo_timer para el cambio de imagen
+            servo_state = "waiting_suscripcion"  # Nuevo estado para cambio a suscripción
             
         elif action == "ticket_qr":
             print("🎫 Imprimiendo ticket QR")
@@ -591,7 +591,7 @@ def main():
         
         # Variables para el temporizador
         servo_timer = None
-        servo_state = "neutral"  # neutral, waiting, turning, returning
+        servo_state = "neutral"  # neutral, waiting, turning, returning, waiting_suscripcion
         
         # Mostrar atajos de teclado disponibles
         print("\n=== ATAJOS DE TECLADO DISPONIBLES ===")
@@ -649,15 +649,22 @@ def main():
                     printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
                 )
             
-            # Manejar estados del servo SOLO si NO es SOLO_BOTON
-            if not SOLO_BOTON and servo_timer is not None:
-                if servo_state == "waiting" and current_time - servo_timer >= 4:
+            # Manejar estados del servo y transiciones de imagen
+            if servo_timer is not None:
+                if servo_state == "waiting_suscripcion" and current_time - servo_timer >= 5:
+                    # Cambiar a la imagen de suscripción después de 5 segundos
+                    print("Cambiando a imagen de suscripción...")
+                    current_image = "/home/wintermute/tuboton/suscripcion.jpeg"
+                    hide_time = current_time + 10  # Mostrar suscripción por 10 segundos
+                    servo_timer = None
+                    servo_state = "neutral"
+                elif not SOLO_BOTON and servo_state == "waiting" and current_time - servo_timer >= 4:
                     # Mover ambos servos a posición de giro
                     move_servo_smoothly(servo, turn_position)
                     move_servo_smoothly(servo2, turn_position)
                     servo_state = "turning"
                     servo_timer = current_time
-                elif servo_state == "turning" and current_time - servo_timer >= 2:
+                elif not SOLO_BOTON and servo_state == "turning" and current_time - servo_timer >= 2:
                     # Volver ambos servos a posición neutral
                     move_servo_smoothly(servo, neutral_position)
                     move_servo_smoothly(servo2, neutral_position)
@@ -665,7 +672,7 @@ def main():
                     detach_servo(servo2)
                     servo_state = "returning"
                     servo_timer = current_time
-                elif servo_state == "returning" and current_time - servo_timer >= 0.5:
+                elif not SOLO_BOTON and servo_state == "returning" and current_time - servo_timer >= 0.5:
                     # Establecer el tiempo para ocultar la imagen (5 segundos después)
                     hide_time = current_time + 5
                     servo_timer = None
