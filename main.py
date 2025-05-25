@@ -591,6 +591,7 @@ def main():
         # Configurar Pygame
         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
         pygame.display.set_caption("Tu Botón")
+        pygame.mouse.set_visible(False)  # Ocultar el cursor del mouse
         clock = pygame.time.Clock()
         button_visible = False
         current_image = None
