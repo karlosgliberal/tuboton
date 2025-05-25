@@ -1,0 +1,49 @@
+[Unit]
+Description=Tu Boton - Sistema Interactivo
+Documentation=https://github.com/tuboton/app
+After=multi-user.target network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=wintermute
+Group=wintermute
+WorkingDirectory=/home/wintermute/tuboton
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/wintermute/.Xauthority
+Environment=HOME=/home/wintermute
+Environment=PYTHONPATH=/home/wintermute/tuboton
+Environment=PYTHONUNBUFFERED=1
+
+# Comando principal
+ExecStart=/usr/bin/python3 /home/wintermute/tuboton/main.py
+
+# Configuración de reinicio automático
+Restart=always
+RestartSec=10
+StartLimitBurst=3
+StartLimitIntervalSec=60
+
+# Timeouts
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tuboton
+
+# Seguridad y permisos
+# Permitir acceso a GPIO, USB y display
+SupplementaryGroups=gpio dialout video audio
+
+# Configuración de recursos
+MemoryMax=512M
+CPUQuota=80%
+
+# Configuración de directorio
+StateDirectory=tuboton
+StateDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target 

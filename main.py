@@ -17,6 +17,114 @@ import os
 import uuid
 import datetime
 import qrcode
+import logging
+import signal
+import atexit
+
+# === CONFIGURACIÓN DE LOGGING PARA AUTOARRANQUE ===
+def setup_logging():
+    """Configura el sistema de logging para el autoarranque"""
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    
+    # Log a archivo y consola
+    logging.basicConfig(
+        level=logging.INFO,
+        format=log_format,
+        handlers=[
+            logging.FileHandler('/var/log/tuboton.log', mode='a'),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    
+    logger = logging.getLogger('tuboton')
+    logger.info("=== INICIANDO TU BOTÓN ===")
+    return logger
+
+# === CONFIGURACIÓN DE SEÑALES Y LIMPIEZA ===
+def signal_handler(signum, frame):
+    """Maneja las señales de sistema para limpieza ordenada"""
+    logger.info(f"Recibida señal {signum}, cerrando aplicación...")
+    cleanup_and_exit()
+
+def cleanup_and_exit():
+    """Limpia recursos y sale ordenadamente"""
+    try:
+        logger.info("Iniciando limpieza de recursos...")
+        
+        # Limpiar servos si existen
+        if 'servo' in globals() and servo:
+            detach_servo(servo)
+            logger.info("Servo 1 desactivado")
+        
+        if 'servo2' in globals() and servo2:
+            detach_servo(servo2)
+            logger.info("Servo 2 desactivado")
+        
+        # Cerrar impresora si existe
+        if 'printer' in globals() and printer:
+            printer.close()
+            logger.info("Impresora cerrada")
+        
+        # Cerrar pygame
+        pygame.quit()
+        logger.info("Pygame cerrado")
+        
+        logger.info("=== TU BOTÓN CERRADO CORRECTAMENTE ===")
+        
+    except Exception as e:
+        logger.error(f"Error durante la limpieza: {str(e)}")
+    
+    sys.exit(0)
+
+# Configurar manejadores de señales
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+atexit.register(cleanup_and_exit)
+
+# Inicializar logging
+logger = setup_logging()
+
+# === VERIFICACIONES DE DEPENDENCIAS ===
+def check_environment():
+    """Verifica que el entorno esté correctamente configurado"""
+    try:
+        logger.info("Verificando entorno de ejecución...")
+        
+        # Verificar directorio de imágenes
+        if not os.path.exists("images"):
+            logger.error("Directorio 'images' no encontrado")
+            return False
+        
+        # Verificar que hay imágenes
+        image_pattern = os.path.join("images", "imagen_*.png")
+        images = glob.glob(image_pattern)
+        if not images:
+            logger.error("No se encontraron imágenes en el directorio 'images'")
+            return False
+        
+        logger.info(f"Encontradas {len(images)} imágenes")
+        
+        # Verificar imagen de suscripción
+        suscripcion_path = "/home/wintermute/tuboton/suscripcion.jpeg"
+        if os.path.exists(suscripcion_path):
+            logger.info("Imagen de suscripción encontrada")
+        else:
+            logger.warning("Imagen de suscripción no encontrada en /home/wintermute/tuboton/suscripcion.jpeg")
+        
+        # Verificar permisos de usuario
+        try:
+            import pwd
+            current_user = pwd.getpwuid(os.getuid()).pw_name
+            logger.info(f"Ejecutándose como usuario: {current_user}")
+        except:
+            pass
+        
+        logger.info("Verificación del entorno completada")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error en verificación del entorno: {str(e)}")
+        return False
 
 # === FUNCIONES EXACTAS DEL CÓDIGO ORIGINAL ===
 
@@ -27,6 +135,7 @@ def get_random_style():
 
 def setup_servo(pin):
     try:
+        logger.info(f"Configurando servo en pin {pin}...")
         servo = AngularServo(
             pin=pin,
             min_pulse_width=0.0005,
@@ -36,13 +145,15 @@ def setup_servo(pin):
             min_angle=-90,
             max_angle=90
         )
+        logger.info(f"✓ Servo configurado correctamente en pin {pin}")
         return servo
     except Exception as e:
-        print("Error al configurar el servo. Asegúrate de que:")
-        print("1. Estás ejecutando el script como root (sudo)")
-        print("2. El módulo gpiozero está instalado")
-        print(f"Error detallado: {str(e)}")
-        sys.exit(1)
+        logger.error(f"Error al configurar el servo en pin {pin}: {str(e)}")
+        logger.error("Asegúrate de que:")
+        logger.error("1. Estás ejecutando el script con permisos de GPIO")
+        logger.error("2. El módulo gpiozero está instalado")
+        logger.error("3. El pin GPIO no está siendo usado por otro proceso")
+        raise
 
 def move_servo_smoothly(servo, target_angle, steps=5, delay=0.05):
     """Mueve el servo suavemente al ángulo objetivo"""
@@ -54,28 +165,33 @@ def move_servo_smoothly(servo, target_angle, steps=5, delay=0.05):
             servo.angle = current_angle + (step_size * (i + 1))
             time.sleep(delay)
     except Exception as e:
-        print(f"Error al mover el servo: {str(e)}")
+        logger.error(f"Error al mover el servo: {str(e)}")
 
 def detach_servo(servo):
     """Desactiva el servo estableciendo el ángulo a None"""
-    servo.angle = None
-    time.sleep(0.1)
+    try:
+        servo.angle = None
+        time.sleep(0.1)
+    except Exception as e:
+        logger.error(f"Error al desactivar servo: {str(e)}")
 
 def setup_printer():
     try:
+        logger.info("Configurando impresora térmica...")
         printer = Usb(VENDOR_ID, PRODUCT_ID, timeout=0, in_ep=0x81, out_ep=0x01)
+        logger.info("✓ Impresora configurada correctamente")
         return printer
     except usb.core.USBError as e:
         if e.errno == 13:
-            print("\n*** ERROR DE PERMISOS USB ***")
-            print("Asegúrate de que tu usuario tiene permisos para acceder al dispositivo USB.")
+            logger.error("ERROR DE PERMISOS USB - El usuario no tiene permisos para acceder al dispositivo USB")
+            logger.error("Solución: Añadir usuario al grupo 'dialout' o configurar reglas udev")
         elif e.errno == 19:
-            print(f"\n*** ERROR: No se encontró la impresora ***")
+            logger.warning("Impresora no encontrada - Continuando sin impresora")
         else:
-            print(f"\nError USB no manejado: {str(e)}")
+            logger.error(f"Error USB no manejado: {str(e)}")
         return None
     except Exception as e:
-        print(f"\nError general al configurar la impresora: {str(e)}")
+        logger.error(f"Error general al configurar la impresora: {str(e)}")
         return None
 
 def print_debug(printer):
@@ -562,21 +678,33 @@ def handle_probabilistic_button(current_image, button_visible, hide_time, servo_
     return current_image, button_visible, hide_time, servo_timer, servo_state
 
 def main():
+    # Verificar entorno antes de iniciar
+    if not check_environment():
+        logger.error("Verificación del entorno falló. Cerrando aplicación.")
+        sys.exit(1)
+    
+    # Variables globales para limpieza
+    global servo, servo2, printer
+    servo = None
+    servo2 = None
+    printer = None
+    
     try:
-        # Configurar servo y botón
+        logger.info("Iniciando configuración de hardware...")
+        
+        # Configurar servos y botón
         servo = setup_servo(SERVO_PIN)
         servo2 = setup_servo(SERVO2_PIN)
         button = Button(BUTTON_PIN)
-        print("Servo y pulsador configurados correctamente")
+        logger.info("✓ Servos y botón configurados correctamente")
         
         # Configurar impresora solo si SOLO_BOTON es False
-        printer = None
         if not SOLO_BOTON:
             printer = setup_printer()
             if not printer:
-                print("No se pudo configurar la impresora. Continuando solo con los servos...")
+                logger.warning("No se pudo configurar la impresora. Continuando solo con los servos...")
         else:
-            print("Modo SOLO_BOTON activado: la impresora está deshabilitada.")
+            logger.info("Modo SOLO_BOTON activado: la impresora está deshabilitada.")
         
         # Posiciones del servo
         neutral_position = -90
@@ -585,14 +713,23 @@ def main():
         neutral_position2 = 30  # Cambiado de 0 a 30 grados
         
         # Iniciar en posición neutral
+        logger.info("Inicializando servos en posición neutral...")
         move_servo_smoothly(servo2, neutral_position2)
         detach_servo(servo2)
         
-        # Configurar Pygame
+        # Configurar Pygame con delays para evitar problemas de inicialización
+        logger.info("Configurando interfaz gráfica...")
+        time.sleep(2)  # Delay para asegurar que X11 esté listo
+        
+        os.environ['SDL_VIDEODRIVER'] = 'x11'  # Forzar driver X11
+        pygame.init()
         screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
         pygame.display.set_caption("Tu Botón")
         pygame.mouse.set_visible(False)  # Ocultar el cursor del mouse
         clock = pygame.time.Clock()
+        
+        logger.info("✓ Interfaz gráfica configurada correctamente")
+        
         button_visible = False
         current_image = None
         hide_time = None
@@ -601,50 +738,61 @@ def main():
         servo_timer = None
         servo_state = "neutral"  # neutral, waiting, turning, returning, waiting_suscripcion
         
-        # Mostrar atajos de teclado disponibles
-        print("\n=== ATAJOS DE TECLADO DISPONIBLES ===")
-        print("SPACE - Equivalente al botón GPIO (imagen + ticket + servos)")
-        print("P     - Solo impresora (ticket completo)")
-        print("Q     - Solo ticket QR")
-        print("L     - Ticket largo (igual que P)")
-        print("S     - Solo servos")
-        print("ESC   - Salir del programa")
-        print("=====================================\n")
+        # Mostrar información de configuración
+        logger.info("=== CONFIGURACIÓN ACTIVA ===")
+        logger.info(f"Servo 1 Pin: {SERVO_PIN}")
+        logger.info(f"Servo 2 Pin: {SERVO2_PIN}")
+        logger.info(f"Botón Pin: {BUTTON_PIN}")
+        logger.info(f"Solo Botón: {SOLO_BOTON}")
+        logger.info(f"Debug Mode: {DEBUG_MODE}")
+        logger.info("=== ATAJOS DE TECLADO DISPONIBLES ===")
+        logger.info("SPACE - Equivalente al botón GPIO (sistema de probabilidad)")
+        logger.info("P     - Solo impresora (ticket completo)")
+        logger.info("Q     - Solo ticket QR")
+        logger.info("L     - Ticket largo (igual que P)")
+        logger.info("S     - Solo servos")
+        logger.info("ESC   - Salir del programa")
+        logger.info("=== SISTEMA DE PROBABILIDAD ACTIVO ===")
+        logger.info(f"Solo imagen:      {PROB_SOLO_IMAGEN}%")
+        logger.info(f"Ticket QR:        {PROB_TICKET_QR}%") 
+        logger.info(f"Ticket + servos:  {PROB_TICKET_SERVOS}%")
+        logger.info("=====================================")
         
-        # Mostrar configuración de probabilidades
-        print("=== SISTEMA DE PROBABILIDAD ACTIVO ===")
-        print(f"Solo imagen:      {PROB_SOLO_IMAGEN}%")
-        print(f"Ticket QR:        {PROB_TICKET_QR}%") 
-        print(f"Ticket + servos:  {PROB_TICKET_SERVOS}%")
-        print("=====================================\n")
+        logger.info("🚀 Tu Botón iniciado correctamente - Entrando en bucle principal")
         
+        # Bucle principal
         while True:
             # Manejar eventos de Pygame
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+                    logger.info("Evento QUIT recibido")
+                    cleanup_and_exit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        sys.exit()
+                        logger.info("Tecla ESC presionada - Cerrando aplicación")
+                        cleanup_and_exit()
                     elif event.key == pygame.K_SPACE:
                         # SPACE - Equivalente al botón GPIO
+                        logger.info("Tecla SPACE presionada")
                         current_image, button_visible, hide_time, servo_timer, servo_state = handle_space_key(
                             current_image, button_visible, hide_time, servo_timer, servo_state,
                             printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
                         )
                     elif event.key == pygame.K_p:
                         # P - Solo impresora
+                        logger.info("Tecla P presionada")
                         handle_p_key(printer)
                     elif event.key == pygame.K_q:
                         # Q - Solo ticket QR
+                        logger.info("Tecla Q presionada")
                         handle_q_key(printer)
                     elif event.key == pygame.K_l:
                         # L - Ticket largo
+                        logger.info("Tecla L presionada")
                         handle_l_key(printer)
                     elif event.key == pygame.K_s:
                         # S - Solo servos
+                        logger.info("Tecla S presionada")
                         handle_s_key(servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2)
             
             current_time = time.time()
@@ -652,6 +800,7 @@ def main():
             # Verificar si el botón físico está presionado
             if button.is_pressed:
                 # Usar sistema de probabilidad para el botón físico
+                logger.info("Botón físico presionado")
                 current_image, button_visible, hide_time, servo_timer, servo_state = handle_probabilistic_button(
                     current_image, button_visible, hide_time, servo_timer, servo_state,
                     printer, servo, servo2, neutral_position, turn_position, neutral_position2, turn_position2
@@ -661,19 +810,21 @@ def main():
             if servo_timer is not None:
                 if servo_state == "waiting_suscripcion" and current_time - servo_timer >= 5:
                     # Cambiar a la imagen de suscripción después de 5 segundos
-                    print("Cambiando a imagen de suscripción...")
+                    logger.info("Cambiando a imagen de suscripción...")
                     current_image = "/home/wintermute/tuboton/suscripcion.jpeg"
                     hide_time = current_time + 10  # Mostrar suscripción por 10 segundos
                     servo_timer = None
                     servo_state = "neutral"
                 elif not SOLO_BOTON and servo_state == "waiting" and current_time - servo_timer >= 4:
                     # Mover ambos servos a posición de giro
+                    logger.info("Activando servos...")
                     move_servo_smoothly(servo, turn_position)
                     move_servo_smoothly(servo2, turn_position)
                     servo_state = "turning"
                     servo_timer = current_time
                 elif not SOLO_BOTON and servo_state == "turning" and current_time - servo_timer >= 2:
                     # Volver ambos servos a posición neutral
+                    logger.info("Devolviendo servos a posición neutral...")
                     move_servo_smoothly(servo, neutral_position)
                     move_servo_smoothly(servo2, neutral_position)
                     detach_servo(servo)
@@ -704,17 +855,12 @@ def main():
             clock.tick(60)
 
     except KeyboardInterrupt:
-        print("\nPrograma detenido por el usuario")
-        if 'servo' in locals():
-            detach_servo(servo)
-        if 'servo2' in locals():
-            detach_servo(servo2)
-        if 'printer' in locals() and printer:
-            printer.close()
-        pygame.quit()
+        logger.info("Programa detenido por el usuario (Ctrl+C)")
+        cleanup_and_exit()
     except Exception as e:
-        print(f"Error inesperado: {str(e)}")
-        pygame.quit()
+        logger.error(f"Error inesperado en función main: {str(e)}")
+        logger.error("Detalles del error:", exc_info=True)
+        cleanup_and_exit()
 
 if __name__ == "__main__":
     main() 
