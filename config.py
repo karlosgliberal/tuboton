@@ -111,15 +111,15 @@ BUTTON_STYLES = {
 }
 
 # --- Configuración del QR ---
-QR_URL = "https://www.karlosgliberal.com/proyectos/este-es-tu-boton/"  # Cambiar por la URL real
+QR_URL = "http://tuboton.karlosgliberal.com/"  # Cambiar por la URL real
 QR_SIZE = 3  # Tamaño del QR (1-10, donde 3 es tamaño mediano)
 QR_BORDER = 2  # Borde alrededor del QR en píxeles
 
 # --- Sistema de Probabilidad ---
 # Probabilidades para las acciones del botón (deben sumar 100)
-PROB_SOLO_IMAGEN = 70      # Solo mostrar imagen en pantalla
-PROB_TICKET_QR = 25        # Imprimir solo ticket QR  
-PROB_TICKET_SERVOS = 5     # Imprimir ticket largo + activar servos
+PROB_SOLO_IMAGEN = 60      # Solo mostrar imagen en pantalla
+PROB_TICKET_QR = 30        # Imprimir solo ticket QR  
+PROB_TICKET_SERVOS = 10     # Imprimir ticket largo + activar servos
 
 # Verificación automática (no modificar)
 _TOTAL_PROB = PROB_SOLO_IMAGEN + PROB_TICKET_QR + PROB_TICKET_SERVOS

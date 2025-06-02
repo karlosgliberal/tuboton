@@ -528,6 +528,7 @@ def print_qr_ticket(printer):
         printer.text("*** TU BOTÓN ***\n")
         printer.text("--------------------\n")
         printer.text("Código de Acceso\n\n")
+        printer.text("Con tu plan plus de suscripción\n\n")
         
         # 3. Imprimir el código QR
         if not print_qr_code(printer):
@@ -535,7 +536,7 @@ def print_qr_ticket(printer):
         
         # 4. Pie de página
         printer.text("--------------------\n")
-        printer.text("Escanea para acceder\n")
+        printer.text("Escanea para ver tu botón\n")
         
         # Fecha y hora
         now = datetime.datetime.now()
@@ -641,8 +642,8 @@ def handle_probabilistic_button(current_image, button_visible, hide_time, servo_
             print("🎫 Imprimiendo ticket QR")
             if printer:
                 print_qr_ticket(printer)
-            # Ocultar imagen después de 3 segundos
-            hide_time = current_time + 3
+            # Ocultar imagen después de 6 segundos
+            hide_time = current_time + 6
             servo_timer = None
             servo_state = "neutral"
             
