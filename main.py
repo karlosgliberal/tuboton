@@ -813,7 +813,7 @@ def main():
                     # Cambiar a la imagen de suscripción después de 5 segundos
                     logger.info("Cambiando a imagen de suscripción...")
                     current_image = "/home/wintermute/tuboton/suscripcion.jpeg"
-                    hide_time = current_time + 10  # Mostrar suscripción por 10 segundos
+                    hide_time = current_time + 5  # Mostrar suscripción por 10 segundos
                     servo_timer = None
                     servo_state = "neutral"
                 elif not SOLO_BOTON and servo_state == "waiting" and current_time - servo_timer >= 4:
